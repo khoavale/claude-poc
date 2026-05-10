@@ -15,6 +15,7 @@
  */
 
 import type { Config } from 'tailwindcss'
+import plugin from 'tailwindcss/plugin'
 
 // TODO(sa): Add a CI lint rule to verify that every --token in tokens.css has
 //           a corresponding entry in theme.extend (ADR-004 consequence).
@@ -85,7 +86,7 @@ const config: Config = {
 
       // ─── Font Family ─────────────────────────────────────────────────────
       fontFamily: {
-        base: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+        base: 'var(--font-family-base)',
       },
 
       // ─── Font Size ───────────────────────────────────────────────────────
@@ -125,6 +126,10 @@ const config: Config = {
         'footer-main-padding-y':    'var(--footer-main-padding-y)',    // 48px
         'nav-padding-lg':           'var(--nav-horizontal-padding-lg)', // 40px
         'nav-padding-md':           'var(--nav-horizontal-padding-md)', // 24px
+        // Icon sizes
+        'icon-sm': 'var(--icon-sm)',
+        'icon-md': 'var(--icon-md)',
+        'icon-lg': 'var(--icon-lg)',
       },
 
       // ─── Box Shadow ──────────────────────────────────────────────────────
@@ -135,22 +140,13 @@ const config: Config = {
       },
 
       // ─── Transition Duration & Easing ────────────────────────────────────
-      // Expressed as complete shorthand values so a single class encodes both
-      // duration and easing function — matching the token definitions exactly.
-      transitionDuration: {
-        fast: '150ms',
-        base: '200ms',
-        slow: '300ms',
-      },
-      transitionTimingFunction: {
-        fast: 'ease-out',
-        base: 'ease-in-out',
-        slow: 'ease-in-out',
-      },
+      // Transition utilities are registered via the addUtilities plugin below
+      // so they reference CSS custom properties directly. This allows the
+      // prefers-reduced-motion override in tokens.css to propagate at runtime.
 
       // ─── Border Radius ───────────────────────────────────────────────────
       borderRadius: {
-        none: '0px',
+        none: 'var(--radius-none)',
         sm:   'var(--radius-sm)',   // 4px
         md:   'var(--radius-md)',   // 8px
         full: 'var(--radius-full)', // 9999px
@@ -163,7 +159,46 @@ const config: Config = {
     },
   },
 
-  plugins: [],
+  plugins: [
+    // ─── Transition utilities (Issues 1) ─────────────────────────────────
+    // Hardcoded transitionDuration / transitionTimingFunction theme entries
+    // were replaced by these utilities so that var(--transition-*) tokens
+    // resolve at runtime and the prefers-reduced-motion override in
+    // tokens.css takes effect without a Tailwind rebuild.
+    plugin(({ addUtilities }) => {
+      addUtilities({
+        '.transition-fast': {
+          transition: 'var(--transition-fast)',
+        },
+        '.transition-base': {
+          transition: 'var(--transition-base)',
+        },
+        '.transition-slow': {
+          transition: 'var(--transition-slow)',
+        },
+      })
+    }),
+
+    // ─── Border shorthand utilities (Issue 4) ────────────────────────────
+    // Tailwind has no shorthand `border` value utility; these addUtilities
+    // entries expose the full border/outline shorthand tokens as classes.
+    plugin(({ addUtilities }) => {
+      addUtilities({
+        '.border-default': {
+          border: 'var(--border-default)',
+        },
+        '.border-nav': {
+          border: 'var(--border-nav)',
+        },
+        '.border-btn-secondary': {
+          border: 'var(--border-btn-secondary)',
+        },
+        '.border-focus': {
+          outline: 'var(--border-focus)',
+        },
+      })
+    }),
+  ],
 }
 
 export default config
