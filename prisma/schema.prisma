@@ -1,0 +1,103 @@
+// Prisma schema for Shoes Selling Management — Storefront CMS tables
+// LP-003-DB: initial storefront CMS models
+// Generator: prisma-client-js
+// Datasource: SQLite (dev) / PostgreSQL (prod) — see ADR-001
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// HeroPromotion — backing store for the hero banner section (ADR-001, A-09)
+// One row is the active hero; the API returns the most recently created record.
+// ---------------------------------------------------------------------------
+model HeroPromotion {
+  id         String   @id @default(cuid())
+  headline   String   @map("headline")
+  imageUrl   String   @map("image_url")
+  imageAlt   String   @map("image_alt")
+  ctaLabel   String   @map("cta_label")
+  ctaHref    String   @map("cta_href")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("hero_promotions")
+}
+
+// ---------------------------------------------------------------------------
+// StorefrontProduct — new-arrivals product cards (ADR-001, US-03)
+// price is nullable: NULL means sold-out / price-hidden (ADR-003, A-02)
+// ---------------------------------------------------------------------------
+model StorefrontProduct {
+  id            String         @id @default(cuid())
+  name          String         @map("name")
+  subtitle      String         @map("subtitle")
+  imageUrl      String         @map("image_url")
+  // NULL = sold-out; see ADR-003 for the reasoning behind the nullable sentinel.
+  price         Decimal?       @map("price")
+  stock         Int            @default(0) @map("stock")
+  arrivedAt     DateTime       @default(now()) @map("arrived_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  wishlistItems WishlistItem[]
+
+  @@map("storefront_products")
+}
+
+// ---------------------------------------------------------------------------
+// WishlistItem — anonymous session wishlist (LP-006-DB, US-04)
+// sessionId identifies the anonymous browser session (no auth at this stage).
+// ON DELETE CASCADE on productId keeps wishlist_items consistent when a
+// product is removed from storefront_products.
+// TODO(sa): add FK to users table when auth schema lands
+// ---------------------------------------------------------------------------
+model WishlistItem {
+  id        String            @id @default(cuid())
+  sessionId String            @map("session_id")
+  productId String            @map("product_id")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  product   StorefrontProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, productId], name: "wishlist_items_session_product_key")
+  @@index([sessionId], name: "wishlist_items_session_id_idx")
+  @@index([productId], name: "wishlist_items_product_id_idx")
+  @@map("wishlist_items")
+}
+
+// ---------------------------------------------------------------------------
+// SportCategory — dynamic sport-tile section (ADR-001, A-05)
+// displayOrder drives the render order; indexed for fast ORDER BY.
+// ---------------------------------------------------------------------------
+model SportCategory {
+  id           String   @id @default(cuid())
+  label        String   @map("label")
+  imageUrl     String   @map("image_url")
+  sportSlug    String   @unique @map("sport_slug")
+  displayOrder Int      @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([displayOrder], name: "sport_categories_display_order_idx")
+  @@map("sport_categories")
+}
+
+// ---------------------------------------------------------------------------
+// MembershipContent — membership banner copy (ADR-001, A-06)
+// Single active row; same fetch strategy as HeroPromotion.
+// ---------------------------------------------------------------------------
+model MembershipContent {
+  id        String   @id @default(cuid())
+  heading   String   @map("heading")
+  body      String   @map("body")
+  imageUrl  String   @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("membership_contents")
+}
